@@ -1,0 +1,9 @@
+streamlit
+python-dotenv
+google-genai
+pillow
+sqlalchemy
+psycopg2-binary
+pandas
+plotly
+psycopg[binary]
