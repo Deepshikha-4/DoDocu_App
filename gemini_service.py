@@ -63,10 +63,7 @@ Rules:
 - currency should preferably be an ISO currency code such as MUR, USD, EUR, GBP.
 - summary should be one short sentence.
 """
-
-
 def extract_document(image_bytes, mime_type):
-
     response = client.models.generate_content(
         model="gemini-3.6-flash",
         contents=[
@@ -77,7 +74,6 @@ def extract_document(image_bytes, mime_type):
             PROMPT,
         ],
     )
-
     text = response.text.strip()
 
     # Remove accidental markdown code fences
@@ -85,5 +81,4 @@ def extract_document(image_bytes, mime_type):
         text = text.replace("```json", "")
         text = text.replace("```", "")
         text = text.strip()
-
     return json.loads(text)
