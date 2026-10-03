@@ -6,7 +6,7 @@ DoDocu is an AI-powered document and receipt scanner built with **Python, Stream
 
 Users can upload a receipt or document image, extract structured information using Gemini, review the extracted information, and save the record to a PostgreSQL database.
 
-## ✨ Version 1.0 Features
+## ✨ Version 1.2.0 Features
 
 * 📷 Upload receipt/document images
 * 🤖 Extract information using Google Gemini
@@ -65,12 +65,31 @@ dodocu_app/
 ├── app.py
 ├── database.py
 ├── gemini_service.py
+├── document_templates.py
+├── analytics.py 
 ├── requirements.txt
+├── dodocu_icon.png
+├── .env
 ├── Dockerfile
 ├── .dockerignore
 ├── .gitignore
 └── README.md
 ```
+1. **app.py**: Main Streamlit application, navigation and UI
+2. **database.py**: connects to Neon PostgreSQL. creates tables, saves and retrieves records from the Neon PostgreSQL database
+3. **gemini_service.py**: sends document image to Gemini and performs information extraction using the API key
+4. **document_templates.py**: defines fields/templates for each document category
+5. **analytics.py**: performs calculations and prepares data for charts/metrics
+6. **requirements.txt**: contains Python dependencied 
+7. **dodocu_icon.png**: Dodocu icon
+
+## 🌐 Live Demo
+
+Try the deployed DoDocu application:
+
+**[Launch DoDocu](https://dodocu-app.onrender.com)**
+
+> Note: The application is hosted on Render and may take a short time to start if it has been inactive.
 
 ## 📌 Version
 
