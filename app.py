@@ -1,16 +1,25 @@
 # app.py
 
 import io
-from datetime import date
+
+from datetime import (
+    date,
+    datetime,
+    timedelta,
+)
 
 import pandas as pd
 import streamlit as st
 from PIL import Image
+import plotly.express as px
 
 from database import (
     init_database,
     save_document,
     get_documents,
+    get_filter_options,
+    get_document,
+    DuplicateDocumentError,
 )
 
 from gemini_service import extract_document
@@ -26,412 +35,693 @@ from analytics import (
     spending_by_category,
     spending_by_merchant,
     spending_over_time,
+    spending_by_category_over_time,
+    spending_by_document,
 )
-
+# ============================================================
 # PAGE CONFIG
+# ============================================================
+
 st.set_page_config(
     page_title="DoDocu",
-    page_icon="dodocu_icon.png",
-    layout="wide"
+    page_icon="dodocu_test_icon.png",
+    layout="wide",
 )
 
-# PRESENTATION FONT SIZE
+# ============================================================
+# GLOBAL CSS
+# ============================================================
+
 st.markdown(
     """
     <style>
-
-    /* Normal paragraph text */
     .stMarkdown p,
     .stMarkdown li {
-        font-size: 18px !important;
-        line-height: 1.5 !important;
+        font-size: 17px !important;
+        line-height: 1.65 !important;
     }
 
-    /* Main section headings */
     h1 {
         font-size: 34px !important;
     }
 
     h2 {
-        font-size: 30px !important;
+        font-size: 28px !important;
     }
 
-    /* Card / subsection headings */
     h3 {
-        font-size: 24px !important;
+        font-size: 21px !important;
     }
 
-    /* Sidebar text */
     [data-testid="stSidebar"] label {
         font-size: 16px !important;
     }
 
+    /* Home page hero */
+    .home-hero {
+        background: linear-gradient(125deg, #102b3f 0%, #174b59 65%, #23736d 100%);
+        padding: 38px 38px 34px 38px;
+        border-radius: 18px;
+        color: #ffffff;
+        margin: 18px 0 28px 0;
+    }
+
+    .home-eyebrow {
+        color: #a8e5d8;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 12px;
+    }
+
+    .home-hero h1 {
+        color: #ffffff !important;
+        font-size: 39px !important;
+        line-height: 1.2 !important;
+        margin: 0 0 16px 0;
+        font-weight: 700;
+    }
+
+    .home-hero p {
+        color: #e2edf0;
+        font-size: 17px;
+        line-height: 1.7;
+        max-width: 760px;
+        margin: 0;
+    }
+
+    .home-hero .hero-tagline {
+        color: #a8e5d8;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        margin-top: 22px;
+    }
+
+    /* Section headings */
+    .home-section-label {
+        color: #398a80;
+        text-transform: uppercase;
+        letter-spacing: 1.7px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-bottom: 7px;
+    }
+
+    .home-section-title {
+        color: #183448;
+        font-size: 27px;
+        line-height: 1.3;
+        font-weight: 700;
+        margin: 0 0 10px 0;
+    }
+
+    .home-section-intro {
+        color: #647783;
+        font-size: 16px;
+        line-height: 1.7;
+        margin-bottom: 20px;
+    }
+
+    /* Content cards */
+    .home-card {
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128, 145, 155, 0.24);
+        border-radius: 13px;
+        padding: 22px 20px;
+        min-height: 155px;
+        height: 100%;
+    }
+
+    .home-card .card-number {
+        color: #398a80;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        margin-bottom: 12px;
+    }
+
+    .home-card h3 {
+        color: var(--text-color);
+        font-size: 18px !important;
+        margin: 0 0 9px 0;
+        font-weight: 700;
+    }
+
+    .home-card p {
+        color: var(--text-color);
+        opacity: 0.82;
+        font-size: 14px !important;
+        line-height: 1.65 !important;
+        margin: 0;
+    }
+
+    /* Workflow cards */
+    .workflow-card {
+        border-top: 3px solid #398a80;
+        background: var(--secondary-background-color);
+        border-radius: 0 0 12px 12px;
+        padding: 19px 15px;
+        min-height: 180px;
+        height: 100%;
+    }
+
+    .workflow-card .step {
+        color: #398a80;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
+    }
+
+    .workflow-card h3 {
+        color: var(--text-color);
+        font-size: 17px !important;
+        margin: 0 0 8px 0;
+    }
+
+    .workflow-card p {
+        color: var(--text-color);
+        opacity: 0.82;
+        font-size: 13px !important;
+        line-height: 1.6 !important;
+        margin: 0;
+    }
+
+    /* Technology and closing panels */
+    .tech-card {
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(128, 145, 155, 0.24);
+        border-radius: 11px;
+        padding: 17px;
+        min-height: 120px;
+        height: 100%;
+    }
+
+    .tech-card h3 {
+        font-size: 16px !important;
+        margin: 0 0 7px 0;
+        color: var(--text-color);
+    }
+
+    .tech-card p {
+        font-size: 13px !important;
+        line-height: 1.6 !important;
+        color: var(--text-color);
+        opacity: 0.82;
+        margin: 0;
+    }
+
+    .home-closing {
+        background: rgba(57, 138, 128, 0.10);
+        border: 1px solid rgba(57, 138, 128, 0.28);
+        border-radius: 15px;
+        padding: 27px;
+        margin: 12px 0 20px 0;
+    }
+
+    .home-closing h3 {
+        color: var(--text-color);
+        margin-top: 0;
+    }
+
+    .home-closing p {
+        color: var(--text-color);
+        font-size: 16px !important;
+    }
+
+    @media (max-width: 768px) {
+        .home-hero {
+            padding: 25px 22px;
+        }
+
+        .home-hero h1 {
+            font-size: 30px !important;
+        }
+
+        .home-section-title {
+            font-size: 23px;
+        }
+    }
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
+
+# ============================================================
 # DATABASE
+# ============================================================
 init_database()
-
+# ============================================================
 # BRANDING
-col1, col2 = st.columns([0.12, 0.88])
+# ============================================================
 
-with col1:
-    st.image(
-        "dodocu_icon.png",
-        width=110
-    )
+st.image(
+    "dodocu_ppt_banner.png",
+    width=500,
+)
 
-with col2:
-    st.title("DoDocu")
-    st.markdown(
-        "### Making paper clutter as extinct as the Dodo."
-    )
-    st.caption("### Snap. Extract. Extinct.")
+st.markdown(
+    "### Making paper clutter as extinct as the Dodo."
+)
 
+st.caption(
+    "### Snap. Extract. Extinct."
+)
+
+# ============================================================
 # SIDEBAR
+# ============================================================
+if st.session_state.pop("navigate_to_scan", False):
+    st.session_state["main_navigation"] = "📷 Scan Document"
+
 page = st.sidebar.radio(
     "Navigation",
     [
         "🏠 Home",
         "📷 Scan Document",
         "📊 Records & Analytics",
-    ]
+    ],
+    key="main_navigation",
 )
 
+# ============================================================
 # HOME
+# ============================================================
+
 if page == "🏠 Home":
 
-    # INTRODUCTION
-    st.header("What is DoDocu?")
-
+    # Hero section
     st.markdown(
         """
-        **DoDocu** is an AI-powered document and receipt scanner
-        that transforms paper-based information into structured,
-        searchable and analysable digital records.
-
-        Instead of manually reading, typing and organising information
-        from receipts, invoices, tickets and other paper documents,
-        DoDocu uses artificial intelligence to extract the information
-        and prepare it for human review and digital storage.
-        """
+        <div class="home-hero">
+            <div class="home-eyebrow">AI-powered document intelligence</div>
+            <h1>From paper documents<br>to organised digital records.</h1>
+            <p>
+                DoDocu captures the information hidden in everyday
+                receipts, invoices, tickets and other documents.
+                AI extracts the details, you verify the results,
+                and the information is stored in a structured format
+                ready to search, review and analyse.
+            </p>
+            <div class="hero-tagline">SNAP. EXTRACT. EXTINCT.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    st.divider()
-
-    # PROBLEM
-    st.header("What problems does DoDocu solve?")
-
-    problem_col1, problem_col2, problem_col3 = st.columns(3)
-
-    with problem_col1:
-
-        st.markdown("### 🗂️ Paper Clutter")
-
-        st.write(
-            "Important information can remain trapped in physical "
-            "receipts, invoices, tickets and other paper documents."
-        )
-
-    with problem_col2:
-
-        st.markdown("### 🔎 Difficult to Analyse")
-
-        st.write(
-            "Paper documents are difficult to search, organise, "
-            "compare and analyse once they have accumulated."
-        )
-    with problem_col3:
-
-        st.markdown("### ⌨️ Manual Data Entry")
-
-        st.write(
-            "Manually reading and entering document information "
-            "takes time and can introduce data-entry errors."
-        )
-
-    st.divider()
-
-    # WORKFLOW
-    st.header("How does DoDocu work?")
-
+    # Product overview
     st.markdown(
         """
-        DoDocu combines document scanning, AI extraction, human
-        verification and structured database storage into one workflow.
-        """
+        <div class="home-section-label">The product</div>
+        <div class="home-section-title">Less paperwork. More useful information.</div>
+        <div class="home-section-intro">
+            Paper documents often contain information we need later,
+            but finding a particular purchase, checking an invoice or
+            understanding spending patterns can take unnecessary effort.
+            DoDocu turns those documents into records that are easier to manage.
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    step1, step2, step3, step4, step5 = st.columns(5)
+    benefit_col1, benefit_col2, benefit_col3 = st.columns(3)
 
-    with step1:
-
-        st.markdown("### 📷 1. Prepare & Upload")
-
-        st.write(
-            "Upload image of a receipt, invoice, ticket or "
-            "document. (Optional tool such as Notebloc can be "
-            "used first to create a clearer image."
-        )
-
-    with step2:
-
-        st.markdown("### 🤖 2. Extract")
-
-        st.write(
-            "The image is sent to the Google Gemini API, where "
-            "the Gemini model analyses the document and extracts "
-            "the available information."
-        )
-
-    with step3:
-
-        st.markdown("### 🧾 3. Structure & Review")
-
-        st.write(
-            "The extracted information is displayed using the "
-            "appropriate document template, such as a grocery "
-            "receipt, restaurant receipt, transport ticket or invoice."
-        )
-
-    with step4:
-
-        st.markdown("### 👤 4. Verify & Save")
-
-        st.write(
-            "The user reviews and corrects the AI-generated "
-            "information before saving the final record."
-        )
-
-    with step5:
-
-        st.markdown("### 📊 5. Analyse")
-
-        st.write(
-            "The verified record is stored in Neon PostgreSQL "
-            "and becomes available for searching, viewing and analytics."
-        )
-
-    st.divider()
-
-    # USERS
-    st.header("Who can use DoDocu?")
-
-    user_col1, user_col2, user_col3 = st.columns(3)
-
-    with user_col1:
-
-        st.markdown("### 👤 Individuals")
-
-        st.write(
-            "Keep personal receipts, tickets, invoices and "
-            "other important documents organised digitally."
-        )
-
-    with user_col2:
-
-        st.markdown("### 💼 Small Businesses")
-
-        st.write(
-            "Digitise business documents and reduce time spent on "
-            "manual data entry and document organisation."
-        )
-
-    with user_col3:
-
-        st.markdown("### 🧑‍💻 Freelancers & Self-Employed Professionals")
-
-        st.write(
-            "Capture financial documents and use the stored data "
-            "to review spending by category, merchant and time."
-        )
-
-    st.divider()
-
-    # CAPABILITIES
-    st.header("What can DoDocu do?")
-
-    capabilities_col1, capabilities_col2 = st.columns(2)
-
-    with capabilities_col1:
-
+    with benefit_col1:
         st.markdown(
             """
-            - Upload document images
-            - Extract information using Google Gemini
-            - Classify documents into categories
-            - Present category-specific information
-            - Allow human review and correction
-            """
+            <div class="home-card">
+                <div class="card-number">01 / CAPTURE</div>
+                <h3>Bring documents together</h3>
+                <p>
+                    Digitise receipts, invoices, travel tickets and
+                    other documents instead of relying on scattered
+                    paper copies and image files.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    with capabilities_col2:
-
+    with benefit_col2:
         st.markdown(
             """
-            - Store structured records in PostgreSQL
-            - Store category-specific document details
-            - Store individual receipt and invoice line items
-            - Analyse spending by category and merchant
-            - Analyse spending over time
-            """
+            <div class="home-card">
+                <div class="card-number">02 / UNDERSTAND</div>
+                <h3>Extract meaningful details</h3>
+                <p>
+                    Use AI to identify available dates, merchants,
+                    amounts, document categories and other relevant
+                    information from an uploaded image.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    st.divider()
+    with benefit_col3:
+        st.markdown(
+            """
+            <div class="home-card">
+                <div class="card-number">03 / USE</div>
+                <h3>Make records work for you</h3>
+                <p>
+                    Review extracted information, save structured
+                    records and explore spending patterns through
+                    filters, summaries and visualisations.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    # DOCUMENT TYPES
-    st.header("What types of documents can DoDocu handle?")
+    st.write("")
 
-    columns = st.columns(3)
+    # Workflow
+    st.markdown(
+        """
+        <div class="home-section-label">How it works</div>
+        <div class="home-section-title">A straightforward document workflow</div>
+        <div class="home-section-intro">
+            From an uploaded image to a searchable database record,
+            each stage has a clear purpose. AI assists with extraction;
+            the user remains responsible for reviewing the information.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    workflow = [
+        (
+            "STEP 01",
+            "Upload",
+            "Select an image of a receipt, invoice, ticket or other document.",
+        ),
+        (
+            "STEP 02",
+            "Extract",
+            "Google Gemini interprets the image and returns available document details.",
+        ),
+        (
+            "STEP 03",
+            "Review",
+            "Check the extracted fields and correct any inaccurate or missing values.",
+        ),
+        (
+            "STEP 04",
+            "Save",
+            "Store the verified information as a structured record in PostgreSQL.",
+        ),
+        (
+            "STEP 05",
+            "Explore",
+            "Filter saved records and examine spending by category, merchant and month.",
+        ),
+    ]
+
+    workflow_columns = st.columns(5)
+
+    for column, (step, title, description) in zip(
+        workflow_columns,
+        workflow,
+    ):
+        with column:
+            st.markdown(
+                f"""
+                <div class="workflow-card">
+                    <div class="step">{step}</div>
+                    <h3>{title}</h3>
+                    <p>{description}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.write("")
+
+    # Supported document categories
+    st.markdown(
+        """
+        <div class="home-section-label">Document coverage</div>
+        <div class="home-section-title">Designed for everyday documents</div>
+        <div class="home-section-intro">
+            DoDocu uses document categories and templates to organise
+            extracted information according to the type of record being saved.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     categories = list(DOCUMENT_TEMPLATES.items())
+    category_columns = st.columns(3)
 
     for index, (category, template) in enumerate(categories):
-
-        with columns[index % 3]:
-
+        with category_columns[index % 3]:
             st.markdown(
-                f"### {template['label']}"
+                f"""
+                <div class="home-card">
+                    <h3>{template['label']}</h3>
+                    <p>{template['description']}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
+            st.write("")
 
-            st.write(
-                template["description"]
-            )
-
-    st.divider()
-
-    # TECHNOLOGY STACK
-    st.header("What technologies power DoDocu?")
-
-    tech_col1, tech_col2, tech_col3 = st.columns(3)
-
-    with tech_col1:
-
-        st.markdown("### 1. Python")
-
-        st.write(
-            "Core programming language used to build the "
-            "application logic and data-processing workflow."
-        )
-
-    with tech_col2:
-
-        st.markdown("### 2. Streamlit")
-
-        st.write(
-            "Framework used to build the interactive web "
-            "application and user interface."
-        )
-
-    with tech_col3:
-
-        st.markdown("### 3. Google Gemini API")
-
-        st.write(
-            "Provides AI-powered document understanding and "
-            "information extraction using the Gemini 3.6 Flash model."
-        )
-
-    tech_col4, tech_col5, tech_col6 = st.columns(3)
-
-    with tech_col4:
-
-        st.markdown("### 4. Neon PostgreSQL")
-
-        st.write(
-            "Cloud PostgreSQL database used to persist the "
-            "structured document records."
-        )
-
-    with tech_col5:
-
-        st.markdown("### 5. SQLAlchemy")
-
-        st.write(
-            "ORM used to define the database models and "
-            "manage communication with PostgreSQL."
-        )
-
-    with tech_col6:
-
-        st.markdown("### 6. Pandas")
-
-        st.write(
-            "Used to transform stored records into data structures "
-            "for filtering, reporting and analytics."
-        )
-
-    st.divider()
-
-    # FUTURE WORK
-    st.header("What could DoDocu do next?")
-
+    # Intended users
     st.markdown(
         """
-        DoDocu can be extended beyond document storage and analytics.
-
-        Possible extensions include:
-
-        -  Advanced document search and filtering
-        -  Improved document classification and extraction
-        -  More advanced financial and document analytics
-        -  Budget Planning and financial forecasting
-        -  Email integration for processing documents received by email
-        -  Calendar integration for events, bookings and appointments
-        """
+        <div class="home-section-label">Who it is for</div>
+        <div class="home-section-title">Useful wherever documents accumulate</div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    st.divider()
+    audience_col1, audience_col2, audience_col3 = st.columns(3)
 
-    # CONCLUSION
-    st.header("What is DoDocu ultimately about?")
+    with audience_col1:
+        st.markdown(
+            """
+            <div class="home-card">
+                <h3>Individuals and households</h3>
+                <p>
+                    Keep track of everyday purchases, household expenses,
+                    travel tickets and important receipts.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
+    with audience_col2:
+        st.markdown(
+            """
+            <div class="home-card">
+                <h3>Small businesses</h3>
+                <p>
+                    Organise transaction documents and make routine
+                    financial information easier to retrieve and review.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with audience_col3:
+        st.markdown(
+            """
+            <div class="home-card">
+                <h3>Freelancers and independent professionals</h3>
+                <p>
+                    Keep business-related documents together and review
+                    recorded expenses by merchant, category and date.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.write("")
+
+    # Technology stack
     st.markdown(
         """
-        DoDocu demonstrates how **AI, application development and
-        database technology** can be combined to turn unstructured
-        paper-based information into structured digital data.
-
-        **Snap. Extract. Extinct.**
-        """
+        <div class="home-section-label">Under the hood</div>
+        <div class="home-section-title">The technology behind DoDocu</div>
+        <div class="home-section-intro">
+            A Python application connects AI-powered extraction,
+            structured data storage and interactive analytics.
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
+    technologies = [
+        (
+            "Python",
+            "Application logic, data processing and integration between components.",
+        ),
+        (
+            "Streamlit",
+            "Interactive web interface for document uploads, review and analysis.",
+        ),
+        (
+            "Google Gemini API",
+            "AI-based interpretation of document images and information extraction.",
+        ),
+        (
+            "Neon PostgreSQL",
+            "Cloud-hosted relational database for persistent document records.",
+        ),
+        (
+            "SQLAlchemy",
+            "Database models and interaction with PostgreSQL.",
+        ),
+        (
+            "Pandas and Plotly",
+            "Tabular data processing and interactive analytical visualisations.",
+        ),
+    ]
+
+    tech_columns = st.columns(3)
+
+    for index, (name, description) in enumerate(technologies):
+        with tech_columns[index % 3]:
+            st.markdown(
+                f"""
+                <div class="tech-card">
+                    <h3>{name}</h3>
+                    <p>{description}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.write("")
+
+    # Future direction
+    st.markdown(
+        """
+        <div class="home-section-label">Looking ahead</div>
+        <div class="home-section-title">A foundation for smarter document management</div>
+        <div class="home-section-intro">
+            The current application establishes a workflow for capturing,
+            verifying, storing and analysing document information.
+            Further development could extend that workflow in several directions.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    future_col1, future_col2 = st.columns(2)
+
+    with future_col1:
+        st.markdown(
+            """
+            <div class="home-card">
+                <h3>Better retrieval and insights</h3>
+                <p>
+                    More advanced search, improved extraction accuracy,
+                    budget tracking, financial summaries and forecasting.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with future_col2:
+        st.markdown(
+            """
+            <div class="home-card">
+                <h3>Connected document workflows</h3>
+                <p>
+                    Potential email integration to identify tickets and
+                    payment confirmations, with calendar integration
+                    for relevant events and bookings.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # Closing statement
+    
+    st.markdown(
+        """
+        <div class="home-closing">
+            <h3>Paper in. Useful data out.</h3>
+            <p>
+                DoDocu demonstrates how artificial intelligence,
+                application development and relational databases can
+                work together to turn everyday documents into organised,
+                reviewable and analysable information.
+                </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if st.button(
+        "Start scanning a document",
+        type="primary",
+        use_container_width=True,
+    ):
+        st.session_state["navigate_to_scan"] = True
+        st.rerun()
+
+    if st.session_state.pop("home_navigation", False):
+        st.info(
+            "Select **📷 Scan Document** from the sidebar to begin."
+        )
+
+# ============================================================
 # SCAN DOCUMENT
+# ============================================================
+
 elif page == "📷 Scan Document":
 
-    st.header("📷 Scan Document")
+    st.header(
+        "📷 Scan Document"
+    )
 
     uploaded_file = st.file_uploader(
         "Upload a receipt, invoice, ticket or document",
-        type=["jpg", "jpeg", "png"]
+        type=[
+            "jpg",
+            "jpeg",
+            "png",
+        ],
     )
 
     if uploaded_file:
 
-        image = Image.open(uploaded_file)
+        image = Image.open(
+            uploaded_file
+        )
 
         col1, col2 = st.columns(2)
 
-        # IMAGE
         with col1:
 
-            st.subheader("Uploaded Document")
+            st.subheader(
+                "Uploaded Document"
+            )
 
             st.image(
                 image,
-                use_container_width=True
+                use_container_width=True,
             )
 
-        # EXTRACTION
         with col2:
 
-            st.subheader("AI Extraction")
+            st.subheader(
+                "AI Extraction"
+            )
 
             if st.button(
                 "✨ Extract with DoDocu",
-                type="primary"
+                type="primary",
             ):
 
                 with st.spinner(
@@ -444,20 +734,30 @@ elif page == "📷 Scan Document":
 
                         save_format = (
                             image.format
-                            if image.format in ["JPEG", "PNG"]
+                            if image.format
+                            in [
+                                "JPEG",
+                                "PNG",
+                            ]
                             else "JPEG"
                         )
 
                         if (
                             save_format == "JPEG"
-                            and image.mode in ("RGBA", "P")
+                            and image.mode
+                            in (
+                                "RGBA",
+                                "P",
+                            )
                         ):
 
-                            image = image.convert("RGB")
+                            image = image.convert(
+                                "RGB"
+                            )
 
                         image.save(
                             image_bytes,
-                            format=save_format
+                            format=save_format,
                         )
 
                         mime_type = (
@@ -468,10 +768,12 @@ elif page == "📷 Scan Document":
 
                         result = extract_document(
                             image_bytes.getvalue(),
-                            mime_type
+                            mime_type,
                         )
 
-                        st.session_state["extracted"] = result
+                        st.session_state[
+                            "extracted"
+                        ] = result
 
                         st.success(
                             "Delicious! Document digested!"
@@ -483,10 +785,15 @@ elif page == "📷 Scan Document":
                             f"Extraction failed: {e}"
                         )
 
+    # ========================================================
     # REVIEW
+    # ========================================================
+
     if "extracted" in st.session_state:
 
-        data = st.session_state["extracted"]
+        data = st.session_state[
+            "extracted"
+        ]
 
         st.divider()
 
@@ -499,8 +806,13 @@ elif page == "📷 Scan Document":
             "and corrected before saving."
         )
 
+        # ====================================================
         # COMMON INFORMATION
-        st.subheader("Document Information")
+        # ====================================================
+
+        st.subheader(
+            "Document Information"
+        )
 
         col1, col2, col3 = st.columns(3)
 
@@ -510,17 +822,23 @@ elif page == "📷 Scan Document":
                 "Document Type",
                 value=data.get(
                     "document_type"
-                ) or ""
+                )
+                or "",
             )
 
             category = st.selectbox(
                 "Category",
-                options=list(DOCUMENT_TEMPLATES.keys()),
+                options=list(
+                    DOCUMENT_TEMPLATES.keys()
+                ),
                 format_func=lambda x:
                     DOCUMENT_TEMPLATES[x]["label"],
                 index=(
-                    list(DOCUMENT_TEMPLATES.keys())
-                    .index(data.get("category"))
+                    list(
+                        DOCUMENT_TEMPLATES.keys()
+                    ).index(
+                        data.get("category")
+                    )
                     if data.get("category")
                     in DOCUMENT_TEMPLATES
                     else 0
@@ -531,7 +849,8 @@ elif page == "📷 Scan Document":
                 "Merchant / Organisation",
                 value=data.get(
                     "merchant"
-                ) or ""
+                )
+                or "",
             )
 
         with col2:
@@ -540,14 +859,32 @@ elif page == "📷 Scan Document":
                 "Date",
                 value=data.get(
                     "document_date"
-                ) or ""
+                )
+                or "",
+                placeholder="YYYY-MM-DD",
+            )
+
+            document_time = st.text_input(
+                "Time",
+                value=data.get(
+                    "document_time"
+                )
+                or "",
+                placeholder="HH:MM",
+                help=(
+                    "Enter the transaction or document time "
+                    "in 24-hour format. This is used for "
+                    "exact duplicate detection."
+                ),
             )
 
             currency = st.text_input(
                 "Currency",
                 value=data.get(
                     "currency"
-                ) or ""
+                )
+                or "",
+                max_chars=10,
             )
 
         with col3:
@@ -555,7 +892,8 @@ elif page == "📷 Scan Document":
             subtotal = st.number_input(
                 "Subtotal",
                 value=float(
-                    data.get("subtotal") or 0
+                    data.get("subtotal")
+                    or 0
                 ),
                 min_value=0.0,
             )
@@ -563,7 +901,8 @@ elif page == "📷 Scan Document":
             tax = st.number_input(
                 "Tax",
                 value=float(
-                    data.get("tax") or 0
+                    data.get("tax")
+                    or 0
                 ),
                 min_value=0.0,
             )
@@ -571,7 +910,8 @@ elif page == "📷 Scan Document":
             total = st.number_input(
                 "Total",
                 value=float(
-                    data.get("total") or 0
+                    data.get("total")
+                    or 0
                 ),
                 min_value=0.0,
             )
@@ -580,17 +920,25 @@ elif page == "📷 Scan Document":
             "Summary",
             value=data.get(
                 "summary"
-            ) or ""
+            )
+            or "",
         )
 
+        # ====================================================
         # CATEGORY-SPECIFIC INFORMATION
-        st.subheader("Category-Specific Information")
+        # ====================================================
 
-        template = get_template(category)
+        st.subheader(
+            "Category-Specific Information"
+        )
+
+        template = get_template(
+            category
+        )
 
         existing_details = data.get(
             "details",
-            {}
+            {},
         )
 
         details = {}
@@ -601,45 +949,68 @@ elif page == "📷 Scan Document":
             template["fields"]
         ):
 
-            field_name, label, field_type = field
+            (
+                field_name,
+                label,
+                field_type,
+            ) = field
 
-            with detail_columns[index % 2]:
+            with detail_columns[
+                index % 2
+            ]:
 
-                current_value = existing_details.get(
-                    field_name
+                current_value = (
+                    existing_details.get(
+                        field_name
+                    )
                 )
 
                 if field_type == "number":
 
-                    details[field_name] = st.number_input(
+                    details[
+                        field_name
+                    ] = st.number_input(
                         label,
                         value=float(
-                            current_value or 0
+                            current_value
+                            or 0
                         ),
                         min_value=0.0,
-                        key=f"detail_{field_name}",
+                        key=(
+                            f"detail_{field_name}"
+                        ),
                     )
 
                 else:
 
-                    details[field_name] = st.text_input(
+                    details[
+                        field_name
+                    ] = st.text_input(
                         label,
                         value=str(
-                            current_value or ""
+                            current_value
+                            or ""
                         ),
-                        key=f"detail_{field_name}",
+                        key=(
+                            f"detail_{field_name}"
+                        ),
                     )
 
+        # ====================================================
         # LINE ITEMS
+        # ====================================================
+
         items = []
 
         if template["has_items"]:
 
-            st.subheader("Line Items")
+            st.subheader(
+                "Line Items"
+            )
 
             existing_items = data.get(
                 "items",
-                []
+                [],
             )
 
             if existing_items:
@@ -654,7 +1025,9 @@ elif page == "📷 Scan Document":
                         f"**Item {index + 1}**"
                     )
 
-                    c1, c2, c3, c4 = st.columns(4)
+                    c1, c2, c3, c4 = st.columns(
+                        4
+                    )
 
                     with c1:
 
@@ -662,8 +1035,11 @@ elif page == "📷 Scan Document":
                             "Description",
                             value=item.get(
                                 "description"
-                            ) or "",
-                            key=f"item_desc_{index}",
+                            )
+                            or "",
+                            key=(
+                                f"item_desc_{index}"
+                            ),
                         )
 
                     with c2:
@@ -673,10 +1049,13 @@ elif page == "📷 Scan Document":
                             value=float(
                                 item.get(
                                     "quantity"
-                                ) or 1
+                                )
+                                or 1
                             ),
                             min_value=0.0,
-                            key=f"item_qty_{index}",
+                            key=(
+                                f"item_qty_{index}"
+                            ),
                         )
 
                     with c3:
@@ -686,10 +1065,13 @@ elif page == "📷 Scan Document":
                             value=float(
                                 item.get(
                                     "unit_price"
-                                ) or 0
+                                )
+                                or 0
                             ),
                             min_value=0.0,
-                            key=f"item_price_{index}",
+                            key=(
+                                f"item_price_{index}"
+                            ),
                         )
 
                     with c4:
@@ -699,18 +1081,23 @@ elif page == "📷 Scan Document":
                             value=float(
                                 item.get(
                                     "total"
-                                ) or 0
+                                )
+                                or 0
                             ),
                             min_value=0.0,
-                            key=f"item_total_{index}",
+                            key=(
+                                f"item_total_{index}"
+                            ),
                         )
 
-                    edited_items.append({
-                        "description": description,
-                        "quantity": quantity,
-                        "unit_price": unit_price,
-                        "total": item_total,
-                    })
+                    edited_items.append(
+                        {
+                            "description": description,
+                            "quantity": quantity,
+                            "unit_price": unit_price,
+                            "total": item_total,
+                        }
+                    )
 
                 items = edited_items
 
@@ -720,37 +1107,83 @@ elif page == "📷 Scan Document":
                     "No line items were detected."
                 )
 
+        # ====================================================
         # SAVE
+        # ====================================================
+
         st.divider()
 
         if st.button(
             "💾 Save to DoDocu",
-            type="primary"
+            type="primary",
         ):
 
             try:
 
+                # ------------------------------------------------
+                # DATE
+                # ------------------------------------------------
+
                 parsed_date = None
 
-                if document_date:
+                if document_date.strip():
 
                     parsed_date = date.fromisoformat(
-                        document_date
+                        document_date.strip()
                     )
 
+                # ------------------------------------------------
+                # TIME
+                # ------------------------------------------------
+
+                parsed_time = None
+
+                if document_time.strip():
+
+                    time_value = (
+                        document_time.strip()
+                    )
+
+                    try:
+
+                        parsed_time = (
+                            datetime.strptime(
+                                time_value,
+                                "%H:%M",
+                            ).time()
+                        )
+
+                    except ValueError:
+
+                        parsed_time = (
+                            datetime.strptime(
+                                time_value,
+                                "%H:%M:%S",
+                            ).time()
+                        )
+
+                # ------------------------------------------------
+                # FINAL DATA
+                # ------------------------------------------------
+
                 final_data = {
-                    "document_type": document_type,
+                    "document_type": document_type.strip(),
                     "category": category,
-                    "merchant": merchant,
+                    "merchant": merchant.strip(),
                     "document_date": parsed_date,
-                    "currency": currency.upper(),
+                    "document_time": parsed_time,
+                    "currency": currency.strip().upper(),
                     "subtotal": subtotal,
                     "tax": tax,
                     "total": total,
-                    "summary": summary,
+                    "summary": summary.strip(),
                     "details": details,
                     "items": items,
                 }
+
+                # ------------------------------------------------
+                # SAVE
+                # ------------------------------------------------
 
                 record_id = save_document(
                     final_data
@@ -761,13 +1194,30 @@ elif page == "📷 Scan Document":
                     f"Record ID: {record_id}"
                 )
 
-                del st.session_state["extracted"]
+                del st.session_state[
+                    "extracted"
+                ]
+
+                st.rerun()
+
+            except DuplicateDocumentError as exc:
+
+                st.warning(
+                    "⚠️ Duplicate document detected."
+                )
+
+                st.info(
+                    f"A matching document already exists "
+                    f"as Record #{exc.existing_document_id}. "
+                    f"The new document was not saved."
+                )
 
             except ValueError:
 
                 st.error(
                     "Please enter the date using "
-                    "YYYY-MM-DD format."
+                    "YYYY-MM-DD and the time using "
+                    "HH:MM or HH:MM:SS."
                 )
 
             except Exception as e:
@@ -776,205 +1226,987 @@ elif page == "📷 Scan Document":
                     f"Could not save record: {e}"
                 )
 
+
+# ============================================================
 # RECORDS & ANALYTICS
+# ============================================================
+
 elif page == "📊 Records & Analytics":
 
-    st.header("📊 Records & Analytics")
+    st.header(
+        "📊 Records & Analytics"
+    )
 
-    documents = get_documents()
+    st.caption(
+        "Filter your saved documents and analyse "
+        "your spending patterns."
+    )
 
-    if not documents:
+    # ========================================================
+    # FILTER OPTIONS
+    # ========================================================
 
-        st.info(
-            "No documents have been saved yet."
+    filter_options = get_filter_options()
+
+    category_options = {
+        category["name"]: category["code"]
+        for category in filter_options[
+            "categories"
+        ]
+    }
+
+    # ========================================================
+    # FILTER FORM
+    # ========================================================
+
+    st.subheader(
+        "🔎 Filter Records"
+    )
+
+    st.caption(
+        "* Recommended filter. All filters are optional; "
+        "you can apply only the filters you need."
+    )
+
+    with st.form(
+        "records_filter_form"
+    ):
+
+        filter_col1, filter_col2, filter_col3 = (
+            st.columns(3)
         )
 
-    else:
-
-        data = documents_to_dataframe(
-            documents
-        )
-
-        metrics = calculate_metrics(
-            data
-        )
-
-        # FILTERS
-        st.subheader("Filters")
-
-        filter_col1, filter_col2 = st.columns(2)
+        # ----------------------------------------------------
+        # CATEGORY
+        # ----------------------------------------------------
 
         with filter_col1:
 
-            categories = sorted(
-                data["Category"]
-                .dropna()
-                .unique()
-                .tolist()
+            selected_category_names = (
+                st.multiselect(
+                    "Category *",
+                    options=list(
+                        category_options.keys()
+                    ),
+                    key="filter_categories",
+                )
             )
 
-            selected_categories = st.multiselect(
-                "Category",
-                categories,
-            )
+        # ----------------------------------------------------
+        # CURRENCY
+        # ----------------------------------------------------
 
         with filter_col2:
 
-            currencies = sorted(
-                data["Currency"]
-                .dropna()
-                .unique()
-                .tolist()
-            )
-
-            selected_currencies = st.multiselect(
-                "Currency",
-                currencies,
-            )
-
-        filtered_data = data.copy()
-
-        if selected_categories:
-
-            filtered_data = filtered_data[
-                filtered_data["Category"].isin(
-                    selected_categories
-                )
-            ]
-
-        if selected_currencies:
-
-            filtered_data = filtered_data[
-                filtered_data["Currency"].isin(
-                    selected_currencies
-                )
-            ]
-
-        # METRICS
-        st.divider()
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-
-            st.metric(
-                "Documents",
-                len(filtered_data)
-            )
-
-        with col2:
-
-            st.metric(
-                "Average Document",
-                (
-                    f"{filtered_data['Total'].mean():,.2f}"
-                    if not filtered_data.empty
-                    else "0.00"
+            selected_currencies = (
+                st.multiselect(
+                    "Currency *",
+                    options=filter_options[
+                        "currencies"
+                    ],
+                    key="filter_currencies",
                 )
             )
 
-        # RECORDS
-        st.divider()
+        # ----------------------------------------------------
+        # MONTH
+        # ----------------------------------------------------
 
-        st.subheader("Saved Records")
+        with filter_col3:
 
-        st.dataframe(
-            filtered_data,
-            use_container_width=True,
-            hide_index=True,
+            selected_months = (
+                st.multiselect(
+                    "Month",
+                    options=filter_options[
+                        "months"
+                    ],
+                    key="filter_months",
+                )
+            )
+
+        filter_col4, filter_col5 = (
+            st.columns(2)
         )
 
-        # ANALYTICS
-        if not filtered_data.empty:
+        # ----------------------------------------------------
+        # MERCHANT
+        # ----------------------------------------------------
 
-            st.divider()
+        with filter_col4:
 
-            st.subheader(
-                "📊 Spending by Category"
+            selected_merchants = (
+                st.multiselect(
+                    "Merchant",
+                    options=filter_options[
+                        "merchants"
+                    ],
+                    key="filter_merchants",
+                )
             )
 
-            category_data = spending_by_category(
-                filtered_data
+        # ----------------------------------------------------
+        # DOCUMENT TYPE
+        # ----------------------------------------------------
+
+        with filter_col5:
+
+            selected_document_types = (
+                st.multiselect(
+                    "Document Type",
+                    options=filter_options[
+                        "document_types"
+                    ],
+                    key="filter_document_types",
+                )
             )
 
-            if not category_data.empty:
+        # ----------------------------------------------------
+        # DATE RANGE
+        # ----------------------------------------------------
 
-                for currency in category_data[
-                    "Currency"
-                ].dropna().unique():
+        st.markdown(
+            "#### Date Range *"
+        )
 
-                    currency_data = (
-                        category_data[
-                            category_data["Currency"]
-                            == currency
-                        ]
-                        .set_index("Category")["Total"]
-                    )
+        date_filter = st.selectbox(
+            "Select Date Range",
+            [
+                "All Time",
+                "This Month",
+                "Last Month",
+                "This Year",
+                "Custom Range",
+            ],
+            key="filter_date_range",
+        )
 
-                    st.markdown(
-                        f"**{currency}**"
-                    )
+        start_date = None
+        end_date = None
 
-                    st.bar_chart(
-                        currency_data
-                    )
+        today = date.today()
 
-            st.subheader(
-                "🏪 Spending by Merchant"
+        if date_filter == "This Month":
+
+            start_date = today.replace(
+                day=1
             )
 
-            merchant_data = spending_by_merchant(
-                filtered_data
+            end_date = today
+
+        elif date_filter == "Last Month":
+
+            first_this_month = (
+                today.replace(
+                    day=1
+                )
             )
 
-            if not merchant_data.empty:
-
-                for currency in merchant_data[
-                    "Currency"
-                ].dropna().unique():
-
-                    currency_data = (
-                        merchant_data[
-                            merchant_data["Currency"]
-                            == currency
-                        ]
-                        .set_index("Merchant")["Total"]
-                    )
-
-                    st.markdown(
-                        f"**{currency}**"
-                    )
-
-                    st.bar_chart(
-                        currency_data
-                    )
-
-            st.subheader(
-                "📅 Spending Over Time"
+            end_date = (
+                first_this_month
+                - timedelta(
+                    days=1
+                )
             )
 
-            time_data = spending_over_time(
-                filtered_data
+            start_date = (
+                end_date.replace(
+                    day=1
+                )
             )
 
-            if not time_data.empty:
+        elif date_filter == "This Year":
 
-                for currency in time_data[
-                    "Currency"
-                ].dropna().unique():
+            start_date = date(
+                today.year,
+                1,
+                1,
+            )
 
-                    currency_data = (
-                        time_data[
-                            time_data["Currency"]
-                            == currency
-                        ]
-                        .set_index("Month")["Total"]
+            end_date = today
+
+        elif date_filter == "Custom Range":
+
+            custom_col1, custom_col2 = (
+                st.columns(2)
+            )
+
+            with custom_col1:
+
+                start_date = st.date_input(
+                    "Start Date",
+                    value=date(
+                        today.year,
+                        1,
+                        1,
+                    ),
+                    key="filter_start_date",
+                )
+
+            with custom_col2:
+
+                end_date = st.date_input(
+                    "End Date",
+                    value=today,
+                    key="filter_end_date",
+                )
+
+        # ----------------------------------------------------
+        # APPLY
+        # ----------------------------------------------------
+
+        apply_filters = st.form_submit_button(
+            "🔎 Apply Filters",
+            type="primary",
+            use_container_width=True,
+        )
+
+    # ========================================================
+    # APPLY FILTERS ONLY AFTER BUTTON
+    # ========================================================
+
+    if apply_filters:
+
+        if (
+            start_date
+            and end_date
+            and start_date > end_date
+        ):
+
+            st.error(
+                "Start Date cannot be after End Date."
+            )
+
+            st.stop()
+
+        selected_categories = [
+            category_options[name]
+            for name in selected_category_names
+        ]
+
+        # ----------------------------------------------------
+        # DATABASE QUERY
+        # ----------------------------------------------------
+
+        documents = get_documents(
+            categories=(
+                selected_categories
+                or None
+            ),
+
+            months=(
+                selected_months
+                or None
+            ),
+
+            currencies=(
+                selected_currencies
+                or None
+            ),
+
+            merchants=(
+                selected_merchants
+                or None
+            ),
+
+            document_types=(
+                selected_document_types
+                or None
+            ),
+
+            start_date=start_date,
+
+            end_date=end_date,
+        )
+
+        filtered_data = (
+            documents_to_dataframe(
+                documents
+            )
+        )
+
+        # ----------------------------------------------------
+        # STORE RESULTS
+        # ----------------------------------------------------
+
+        st.session_state[
+            "filtered_documents"
+        ] = documents
+
+        st.session_state[
+            "filtered_data"
+        ] = filtered_data
+
+        st.session_state[
+            "filters_applied"
+        ] = True
+
+    # ========================================================
+    # WAIT UNTIL USER APPLIES FILTERS
+    # ========================================================
+
+    if not st.session_state.get(
+        "filters_applied",
+        False,
+    ):
+
+        st.info(
+            "Select all or some filters above, then click "
+            "**Apply Filters** to view the results."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # CURRENT FILTER RESULTS
+    # ========================================================
+
+    data = st.session_state.get(
+        "filtered_data",
+        pd.DataFrame(),
+    )
+
+    documents = st.session_state.get(
+        "filtered_documents",
+        [],
+    )
+    
+    # Keep records in ascending ID order.
+    if not data.empty and "ID" in data.columns:
+        data = data.sort_values(
+            by="ID",
+            ascending=True,
+            kind="stable",
+        ).reset_index(drop=True)
+
+    # Keep the database document objects in the same ID order.
+    documents = sorted(
+        documents,
+        key=lambda document: document.id,
+    )
+
+    # ========================================================
+    # FILTER OUTPUT
+    # ========================================================
+
+    st.divider()
+
+    st.subheader(
+        "📋 Filter Results"
+    )
+
+    if data.empty:
+
+        st.warning(
+            "No documents match the selected filters."
+        )
+
+        st.stop()
+
+    st.success(
+        f"{len(data):,} document(s) found."
+    )
+
+    # ========================================================
+    # RECORD TABLE
+    # ========================================================
+
+    st.subheader(
+        "📄 Records"
+    )
+
+    display_columns = [
+        "ID",
+        "Date",
+        "Time",
+        "Merchant",
+        "Category",
+        "Currency",
+        "Subtotal",
+        "Tax",
+        "Total",
+        "Type",
+    ]
+
+    display_data = data[
+        [
+            column
+            for column in display_columns
+            if column in data.columns
+        ]
+    ].copy()
+
+    st.dataframe(
+        display_data,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+    # ========================================================
+    # METRICS
+    # ========================================================
+
+    st.divider()
+    st.subheader("Overview")
+
+    metrics = calculate_metrics(data)
+
+    metric_col1, metric_col2 = st.columns(2)
+
+    with metric_col1:
+        st.metric(
+            "Documents recorded",
+            f"{metrics['documents']:,}",
+            help="Number of saved documents matching the filters.",
+        )
+
+    with metric_col2:
+        currencies = list(metrics["total_by_currency"].keys())
+
+        if len(currencies) == 1:
+            currency = currencies[0]
+            total = metrics["total_by_currency"][currency]
+
+            st.metric(
+                f"Total recorded spending ({currency})",
+                f"{total:,.2f}",
+            )
+        else:
+            st.metric(
+                "Currencies represented",
+                len(currencies),
+                help="Totals remain separate for each currency.",
+            )
+
+    metric_col3, metric_col4 = st.columns(2)
+
+    with metric_col3:
+        if len(currencies) == 1:
+            currency = currencies[0]
+            average = metrics["average_by_currency"][currency]
+
+            st.metric(
+                f"Average document value ({currency})",
+                f"{average:,.2f}",
+            )
+        else:
+            st.write("**Total by currency**")
+
+            for currency, total in metrics["total_by_currency"].items():
+                st.write(f"{currency}: {total:,.2f}")
+
+    with metric_col4:
+        if len(currencies) == 1:
+            currency = currencies[0]
+            category = metrics["top_category_by_currency"].get(currency)
+
+            st.metric(
+                "Highest-spending category",
+                category or "N/A",
+                help="Category with the highest recorded total in this currency.",
+            )
+        else:
+            st.metric(
+                "Most frequently recorded category",
+                metrics["top_category"] or "N/A",
+                help="Based on document count, not a comparison of different currencies.",
+            )
+
+
+    # ========================================================
+    # MONTHLY SPENDING
+    # ========================================================
+
+    st.divider()
+    st.subheader("Monthly Spending")
+
+    st.caption(
+        "View the number of receipts and total amount spent "
+        "each month. Hover over a point to see both values."
+    )
+
+    time_data = spending_over_time(data)
+
+    if not time_data.empty:
+
+        currencies_in_chart = sorted(
+            time_data["Currency"].dropna().unique()
+        )
+
+        for currency in currencies_in_chart:
+
+            currency_data = (
+                time_data[
+                    time_data["Currency"] == currency
+                ]
+                .sort_values("Month")
+                .copy()
+            )
+
+            fig = px.line(
+                currency_data,
+                x="Month",
+                y="Total",
+                markers=True,
+                custom_data=["Documents"],
+                title=f"Monthly Spending — {currency}",
+                labels={
+                    "Month": "Month",
+                    "Total": f"Total Spent ({currency})",
+                },
+            )
+
+            fig.update_traces(
+                line=dict(width=3),
+                marker=dict(size=8),
+                hovertemplate=(
+                    "<b>%{x|%B %Y}</b><br>"
+                    f"Total spent: {currency} %{{y:,.2f}}<br>"
+                    "Number of receipts: %{customdata[0]:,.0f}"
+                    "<extra></extra>"
+                ),
+            )
+
+            fig.update_layout(
+                height=420,
+                hovermode="closest",
+                margin=dict(l=20, r=20, t=65, b=20),
+                xaxis=dict(
+                    title="Month",
+                    tickformat="%b %Y",
+                    dtick="M1",
+                    tickangle=-35,
+                ),
+                yaxis=dict(
+                    title=f"Total spent ({currency})",
+                    tickformat=",.2f",
+                    separatethousands=True,
+                    rangemode="tozero",
+                ),
+                showlegend=False,
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True,
+                key=f"monthly_spending_{currency}",
+            )
+
+    else:
+        st.info(
+            "No dated documents are available for the selected filters. "
+            "Add valid document dates to see monthly spending."
+        )
+
+
+
+    # ========================================================
+    # CATEGORY DONUT AND MERCHANT BAR
+    # ========================================================
+
+    chart_col1, chart_col2 = st.columns(2)
+
+    # --------------------------------------------------------
+    # SPENDING BY CATEGORY — DONUT CHART
+    # --------------------------------------------------------
+
+    with chart_col1:
+
+        st.subheader("🍩 Spending by Category")
+
+        category_data = spending_by_category(data)
+
+        if category_data.empty:
+            st.info("No category spending data is available.")
+        else:
+            currencies_in_chart = sorted(
+                category_data["Currency"]
+                .dropna()
+                .unique()
+            )
+
+            for currency in currencies_in_chart:
+
+                currency_data = category_data.loc[
+                    category_data["Currency"] == currency
+                ].copy()
+
+                # A donut chart is not meaningful when every
+                # category has zero recorded spending.
+                currency_data = currency_data.loc[
+                    currency_data["Total"] > 0
+                ]
+
+                if currency_data.empty:
+                    st.info(
+                        f"No positive spending totals are available "
+                        f"for {currency}."
                     )
+                    continue
 
-                    st.markdown(
-                        f"**{currency}**"
-                    )
+                fig = px.pie(
+                    currency_data,
+                    names="Category",
+                    values="Total",
+                    color="Category",
+                    hole=0.55,
+                    title=f"{currency} Spending by Category",
+                    hover_data=["Documents", "Percentage"],
+                    color_discrete_sequence=px.colors.qualitative.Set3,
+                )
 
-                    st.line_chart(
-                        currency_data
-                    )
+                fig.update_traces(
+                    textposition="inside",
+                    textinfo="label+percent",
+                    hovertemplate=(
+                        "<b>%{label}</b><br>"
+                        f"Total: {currency} %{{value:,.2f}}<br>"
+                        "Share: %{percent}<br>"
+                        "<extra></extra>"
+                    ),
+                )
+
+                fig.update_layout(
+                    height=450,
+                    margin=dict(l=15, r=15, t=65, b=15),
+                    showlegend=True,
+                    legend_title_text="Category",
+                )
+
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True,
+                    key=f"category_donut_{currency}",
+                )
+
+    # --------------------------------------------------------
+    # SPENDING BY MERCHANT — HORIZONTAL BAR CHART
+    # --------------------------------------------------------
+
+    with chart_col2:
+
+        st.subheader("🏪 Spending by Merchant")
+
+        merchant_data = spending_by_merchant(data, top_n=10)
+
+        if merchant_data.empty:
+            st.info("No merchant spending data is available.")
+        else:
+            currencies_in_chart = sorted(
+                merchant_data["Currency"]
+                .dropna()
+                .unique()
+            )
+
+            for currency in currencies_in_chart:
+
+                currency_data = merchant_data.loc[
+                    merchant_data["Currency"] == currency
+                ].copy()
+
+                # Plotly displays horizontal bars from bottom
+                # to top, so ascending order puts the largest
+                # merchant totals at the top.
+                currency_data = currency_data.sort_values(
+                    "Total",
+                    ascending=True,
+                )
+
+                fig = px.bar(
+                    currency_data,
+                    x="Total",
+                    y="Merchant",
+                    orientation="h",
+                    title=f"{currency} — Top 10 Merchants",
+                    custom_data=["Documents", "Average"],
+                    color="Merchant",
+                    color_discrete_sequence=px.colors.qualitative.Safe,
+                    labels={
+                        "Total": f"Total ({currency})",
+                        "Merchant": "Merchant",
+                    },
+                )
+
+                fig.update_traces(
+                    hovertemplate=(
+                        "<b>%{y}</b><br>"
+                        f"Total: {currency} %{{x:,.2f}}<br>"
+                        "Documents: %{customdata[0]:,.0f}<br>"
+                        f"Average document: {currency} "
+                        "%{customdata[1]:,.2f}"
+                        "<extra></extra>"
+                    ),
+                )
+
+                fig.update_layout(
+                    height=450,
+                    margin=dict(l=15, r=15, t=65, b=15),
+                    showlegend=False,
+                    xaxis_title=f"Recorded spending ({currency})",
+                    yaxis_title="Merchant",
+                    xaxis_tickformat=",.2f",
+                )
+
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True,
+                    key=f"merchant_bar_{currency}",
+                )
+    # ========================================================
+    # CATEGORY OVER TIME
+    # ========================================================
+
+    st.divider()
+
+    st.subheader(
+        "📊 Category Spending Over Time"
+    )
+
+    category_time_data = (
+        spending_by_category_over_time(
+            data
+        )
+    )
+
+    if not category_time_data.empty:
+
+        currencies_in_chart = (
+            category_time_data[
+                "Currency"
+            ]
+            .dropna()
+            .unique()
+        )
+
+        for currency in currencies_in_chart:
+
+            currency_data = (
+                category_time_data[
+                    category_time_data[
+                        "Currency"
+                    ]
+                    == currency
+                ]
+            )
+
+            fig = px.bar(
+                currency_data,
+                x="Month",
+                y="Total",
+                color="Category",
+                title=(
+                    f"{currency} "
+                    "Category Spending by Month"
+                ),
+                color_discrete_sequence=(
+                    px.colors.qualitative.Vivid
+                ),
+            )
+
+            fig.update_layout(
+                barmode="stack",
+                height=450,
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True,
+            )
+
+    else:
+
+        st.info(
+            "There is not enough dated data to display "
+            "category spending over time."
+        )
+
+    # ========================================================
+    # DOCUMENT DETAILS
+    # ========================================================
+
+    st.divider()
+
+    st.subheader(
+        "🔎 View Document"
+    )
+
+
+    document_ids = sorted(
+        data["ID"].dropna().tolist(),
+        key=int,
+    )
+
+    # Create a readable name for each document
+    document_labels = {}
+
+    for _, row in data.iterrows():
+
+        document_id = row["ID"]
+
+        merchant = (
+            str(row["Merchant"]).strip()
+            if pd.notna(row["Merchant"])
+            and str(row["Merchant"]).strip()
+            else "Unknown Merchant"
+        )
+
+        document_date = (
+            row["Date"].strftime("%d %b %Y")
+            if pd.notna(row["Date"])
+            else "No Date"
+        )
+
+        currency = (
+            str(row["Currency"]).strip()
+            if pd.notna(row["Currency"])
+            else ""
+        )
+
+        total = (
+            float(row["Total"])
+            if pd.notna(row["Total"])
+            else 0.0
+        )
+
+        document_labels[document_id] = (
+            f"#{document_id} | "
+            f"{merchant} | "
+            f"{document_date} | "
+            f"{currency} {total:,.2f}"
+        )
+
+    selected_document_id = st.selectbox(
+        "Select a document",
+        options=document_ids,
+        format_func=lambda x:
+            document_labels.get(
+                x,
+                f"Document #{x}",
+            ),
+    )
+
+    document = get_document(
+        selected_document_id
+    )
+
+    if document:
+
+        info_col1, info_col2 = (
+            st.columns(2)
+        )
+
+        with info_col1:
+
+            st.markdown(
+                f"**Document Type:** "
+                f"{document.document_type}"
+            )
+
+            st.markdown(
+                f"**Category:** "
+                f"{document.category.name}"
+            )
+
+            st.markdown(
+                f"**Merchant:** "
+                f"{document.merchant or 'N/A'}"
+            )
+
+            st.markdown(
+                f"**Date:** "
+                f"{document.document_date or 'N/A'}"
+            )
+
+            st.markdown(
+                f"**Time:** "
+                f"{document.document_time or 'N/A'}"
+            )
+
+        with info_col2:
+
+            st.markdown(
+                f"**Currency:** "
+                f"{document.currency or 'N/A'}"
+            )
+
+            st.markdown(
+                f"**Subtotal:** "
+                f"{document.subtotal or 0}"
+            )
+
+            st.markdown(
+                f"**Tax:** "
+                f"{document.tax or 0}"
+            )
+
+            st.markdown(
+                f"**Total:** "
+                f"{document.total or 0}"
+            )
+
+        if document.summary:
+
+            st.markdown(
+                f"**Summary:** "
+                f"{document.summary}"
+            )
+
+        # ====================================================
+        # CATEGORY DETAILS
+        # ====================================================
+
+        if document.details:
+
+            st.markdown(
+                "### Category-Specific Details"
+            )
+
+            detail_rows = [
+                {
+                    "Field": detail.field_name,
+                    "Value": detail.field_value,
+                }
+                for detail in document.details
+            ]
+
+            st.dataframe(
+                pd.DataFrame(
+                    detail_rows
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        # ====================================================
+        # LINE ITEMS
+        # ====================================================
+
+        if document.items:
+
+            st.markdown(
+                "### Line Items"
+            )
+
+            item_rows = [
+                {
+                    "Description": item.description,
+                    "Quantity": float(
+                        item.quantity or 0
+                    ),
+                    "Unit Price": float(
+                        item.unit_price or 0
+                    ),
+                    "Total": float(
+                        item.total or 0
+                    ),
+                }
+                for item in document.items
+            ]
+
+            st.dataframe(
+                pd.DataFrame(
+                    item_rows
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
