@@ -320,11 +320,10 @@ if page == "🏠 Home":
             <div class="home-eyebrow">AI-powered document intelligence</div>
             <h1>From paper documents<br>to organised digital records.</h1>
             <p>
-                DoDocu captures the information hidden in everyday
-                receipts, invoices, tickets and other documents.
-                AI extracts the details, you verify the results,
-                and the information is stored in a structured format
-                ready to search, review and analyse.
+                DoDocu transforms receipts, invoices, travel tickets and other
+                document images into structured digital records. AI extracts
+                relevant information, you review and correct the results, and
+                the verified records can be retrieved, filtered and analysed.
             </p>
             <div class="hero-tagline">SNAP. EXTRACT. EXTINCT.</div>
         </div>
@@ -338,10 +337,10 @@ if page == "🏠 Home":
         <div class="home-section-label">The product</div>
         <div class="home-section-title">Less paperwork. More useful information.</div>
         <div class="home-section-intro">
-            Paper documents often contain information we need later,
-            but finding a particular purchase, checking an invoice or
-            understanding spending patterns can take unnecessary effort.
-            DoDocu turns those documents into records that are easier to manage.
+            Important information is often trapped in paper receipts, invoices,
+            tickets and image files. DoDocu helps turn those documents into
+            organised records, making it easier to retrieve details, review
+            transactions and understand recorded spending.
         </div>
         """,
         unsafe_allow_html=True,
@@ -356,9 +355,8 @@ if page == "🏠 Home":
                 <div class="card-number">01 / CAPTURE</div>
                 <h3>Bring documents together</h3>
                 <p>
-                    Digitise receipts, invoices, travel tickets and
-                    other documents instead of relying on scattered
-                    paper copies and image files.
+                    Upload JPG or PNG images of receipts, invoices, tickets
+                    and other supported documents into one application.
                 </p>
             </div>
             """,
@@ -370,11 +368,11 @@ if page == "🏠 Home":
             """
             <div class="home-card">
                 <div class="card-number">02 / UNDERSTAND</div>
-                <h3>Extract meaningful details</h3>
+                <h3>Extract and organise information</h3>
                 <p>
-                    Use AI to identify available dates, merchants,
-                    amounts, document categories and other relevant
-                    information from an uploaded image.
+                    Use Gemini AI to identify available dates, merchants,
+                    currency, amounts, summaries and other document-specific
+                    details, including line items where supported.
                 </p>
             </div>
             """,
@@ -385,12 +383,12 @@ if page == "🏠 Home":
         st.markdown(
             """
             <div class="home-card">
-                <div class="card-number">03 / USE</div>
-                <h3>Make records work for you</h3>
+                <div class="card-number">03 / REVIEW AND USE</div>
+                <h3>Keep useful, reviewable records</h3>
                 <p>
-                    Review extracted information, save structured
-                    records and explore spending patterns through
-                    filters, summaries and visualisations.
+                    Correct extracted information before saving it, then
+                    filter saved records and explore recorded spending
+                    through summaries and interactive charts.
                 </p>
             </div>
             """,
@@ -399,15 +397,15 @@ if page == "🏠 Home":
 
     st.write("")
 
-    # Workflow
+    # Application workflow
     st.markdown(
         """
-        <div class="home-section-label">How it works</div>
-        <div class="home-section-title">A straightforward document workflow</div>
+        <div class="home-section-label">Application workflow</div>
+        <div class="home-section-title">From document image to actionable information</div>
         <div class="home-section-intro">
-            From an uploaded image to a searchable database record,
-            each stage has a clear purpose. AI assists with extraction;
-            the user remains responsible for reviewing the information.
+            DoDocu combines AI extraction with human review, relational data
+            storage and analytics. Each stage transforms the information so
+            it can be checked, stored and used later.
         </div>
         """,
         unsafe_allow_html=True,
@@ -417,37 +415,39 @@ if page == "🏠 Home":
         (
             "STEP 01",
             "Upload",
-            "Select an image of a receipt, invoice, ticket or other document.",
+            "Select a JPG or PNG image of a receipt, invoice, ticket or other supported document.",
         ),
         (
             "STEP 02",
-            "Extract",
-            "Google Gemini interprets the image and returns available document details.",
+            "Interpret",
+            "The Google Gemini API processes the image and identifies available text and document information.",
         ),
         (
             "STEP 03",
-            "Review",
-            "Check the extracted fields and correct any inaccurate or missing values.",
+            "Extract and classify",
+            "DoDocu organises the returned information into common fields, a document type, a category and relevant template fields.",
         ),
         (
             "STEP 04",
-            "Save",
-            "Store the verified information as a structured record in PostgreSQL.",
+            "Review and correct",
+            "Inspect the extracted values and edit incorrect or missing information before saving.",
         ),
         (
             "STEP 05",
-            "Explore",
-            "Filter saved records and examine spending by category, merchant and month.",
+            "Store",
+            "Save the reviewed record and its supported category details and line items in the PostgreSQL database.",
+        ),
+        (
+            "STEP 06",
+            "Retrieve and analyse",
+            "Filter saved records and explore totals and spending patterns by category, merchant and month.",
         ),
     ]
 
-    workflow_columns = st.columns(5)
+    workflow_columns = st.columns(3)
 
-    for column, (step, title, description) in zip(
-        workflow_columns,
-        workflow,
-    ):
-        with column:
+    for index, (step, title, description) in enumerate(workflow):
+        with workflow_columns[index % 3]:
             st.markdown(
                 f"""
                 <div class="workflow-card">
@@ -458,6 +458,141 @@ if page == "🏠 Home":
                 """,
                 unsafe_allow_html=True,
             )
+            st.write("")
+
+    st.info(
+        "AI extraction may be incomplete or inaccurate. Reviewing and "
+        "correcting the extracted information before saving is an important "
+        "part of the DoDocu workflow."
+    )
+
+    st.write("")
+
+    # Technology stack
+    st.markdown(
+        """
+        <div class="home-section-label">Under the hood</div>
+        <div class="home-section-title">The technology behind DoDocu</div>
+        <div class="home-section-intro">
+            Python connects the user interface, AI extraction, database
+            operations and analytics. Each technology has a distinct role
+            in the application's workflow.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    technologies = [
+        (
+            "Python",
+            "Application logic, validation, data processing and integration between the application's components.",
+        ),
+        (
+            "Streamlit",
+            "Interactive web interface for document uploads, information review, record management and analytics.",
+        ),
+        (
+            "Custom CSS",
+            "Global styling for typography, headings, spacing, cards and the visual presentation of the interface.",
+        ),
+        (
+            "Google Gemini API — Gemini 3.6 Flash",
+            "Interprets uploaded document images and extracts relevant information, such as dates, merchants, amounts and other document-specific details.",
+        ),
+        (
+            "Neon PostgreSQL",
+            "Cloud-hosted relational database that persistently stores document records and their associated structured information.",
+        ),
+        (
+            "SQLAlchemy",
+            "Object-relational mapping (ORM) and database-access layer used to define models and interact with PostgreSQL.",
+        ),
+        (
+            "Pandas",
+            "Transforms retrieved records into DataFrames for filtering, aggregation and analytical calculations.",
+        ),
+        (
+            "Plotly",
+            "Creates interactive visualisations, including monthly spending trends, category breakdowns and merchant comparisons.",
+        ),
+    ]
+
+    tech_columns = st.columns(3)
+
+    for index, (name, description) in enumerate(technologies):
+        with tech_columns[index % 3]:
+            st.markdown(
+                f"""
+                <div class="tech-card">
+                    <h3>{name}</h3>
+                    <p>{description}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.write("")
+
+    st.write("")
+
+    # Structured information
+    st.markdown(
+        """
+        <div class="home-section-label">Structured information</div>
+        <div class="home-section-title">More than a digital scan</div>
+        <div class="home-section-intro">
+            DoDocu aims to turn document images into information that can be
+            reviewed and queried. The fields available depend on what the
+            document contains and what the AI can identify.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    information_col1, information_col2, information_col3 = st.columns(3)
+
+    with information_col1:
+        st.markdown(
+            """
+            <div class="home-card">
+                <h3>Common fields</h3>
+                <p>
+                    Document type, category, merchant or organisation,
+                    date, time, currency, subtotal, tax, total and summary,
+                    where available.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with information_col2:
+        st.markdown(
+            """
+            <div class="home-card">
+                <h3>Category-specific details</h3>
+                <p>
+                    Template-based fields help capture information relevant
+                    to different categories of documents, rather than
+                    treating every document as identical.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with information_col3:
+        st.markdown(
+            """
+            <div class="home-card">
+                <h3>Line items</h3>
+                <p>
+                    For supported document templates, individual items can
+                    include a description, quantity, unit price and line total.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     st.write("")
 
@@ -467,8 +602,9 @@ if page == "🏠 Home":
         <div class="home-section-label">Document coverage</div>
         <div class="home-section-title">Designed for everyday documents</div>
         <div class="home-section-intro">
-            DoDocu uses document categories and templates to organise
-            extracted information according to the type of record being saved.
+            Document type describes what a document is, while category
+            describes the area it relates to. DoDocu uses templates to
+            organise relevant fields for the selected category.
         </div>
         """,
         unsafe_allow_html=True,
@@ -490,6 +626,11 @@ if page == "🏠 Home":
             )
             st.write("")
 
+    st.caption(
+        "The available categories and fields depend on the document templates "
+        "configured in DoDocu."
+    )
+
     # Intended users
     st.markdown(
         """
@@ -507,8 +648,8 @@ if page == "🏠 Home":
             <div class="home-card">
                 <h3>Individuals and households</h3>
                 <p>
-                    Keep track of everyday purchases, household expenses,
-                    travel tickets and important receipts.
+                    Keep everyday purchase records, household expenses,
+                    travel documents and important receipts organised.
                 </p>
             </div>
             """,
@@ -521,7 +662,7 @@ if page == "🏠 Home":
             <div class="home-card">
                 <h3>Small businesses</h3>
                 <p>
-                    Organise transaction documents and make routine
+                    Keep transaction documents together and make routine
                     financial information easier to retrieve and review.
                 </p>
             </div>
@@ -535,8 +676,8 @@ if page == "🏠 Home":
             <div class="home-card">
                 <h3>Freelancers and independent professionals</h3>
                 <p>
-                    Keep business-related documents together and review
-                    recorded expenses by merchant, category and date.
+                    Organise business-related documents and review recorded
+                    expenses by available category, merchant and date filters.
                 </p>
             </div>
             """,
@@ -545,61 +686,6 @@ if page == "🏠 Home":
 
     st.write("")
 
-    # Technology stack
-    st.markdown(
-        """
-        <div class="home-section-label">Under the hood</div>
-        <div class="home-section-title">The technology behind DoDocu</div>
-        <div class="home-section-intro">
-            A Python application connects AI-powered extraction,
-            structured data storage and interactive analytics.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    technologies = [
-        (
-            "Python",
-            "Application logic, data processing and integration between components.",
-        ),
-        (
-            "Streamlit",
-            "Interactive web interface for document uploads, review and analysis.",
-        ),
-        (
-            "Google Gemini API",
-            "AI-based interpretation of document images and information extraction.",
-        ),
-        (
-            "Neon PostgreSQL",
-            "Cloud-hosted relational database for persistent document records.",
-        ),
-        (
-            "SQLAlchemy",
-            "Database models and interaction with PostgreSQL.",
-        ),
-        (
-            "Pandas and Plotly",
-            "Tabular data processing and interactive analytical visualisations.",
-        ),
-    ]
-
-    tech_columns = st.columns(3)
-
-    for index, (name, description) in enumerate(technologies):
-        with tech_columns[index % 3]:
-            st.markdown(
-                f"""
-                <div class="tech-card">
-                    <h3>{name}</h3>
-                    <p>{description}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            st.write("")
-
     # Future direction
     st.markdown(
         """
@@ -607,8 +693,8 @@ if page == "🏠 Home":
         <div class="home-section-title">A foundation for smarter document management</div>
         <div class="home-section-intro">
             The current application establishes a workflow for capturing,
-            verifying, storing and analysing document information.
-            Further development could extend that workflow in several directions.
+            reviewing, storing and analysing document information.
+            These are potential extensions, not claims about current features.
         </div>
         """,
         unsafe_allow_html=True,
@@ -620,10 +706,11 @@ if page == "🏠 Home":
         st.markdown(
             """
             <div class="home-card">
-                <h3>Better retrieval and insights</h3>
+                <h3>Enhanced search and insights</h3>
                 <p>
-                    More advanced search, improved extraction accuracy,
-                    budget tracking, financial summaries and forecasting.
+                    More advanced retrieval, improved extraction quality,
+                    budget tracking, richer financial summaries and
+                    forecasting.
                 </p>
             </div>
             """,
@@ -637,8 +724,8 @@ if page == "🏠 Home":
                 <h3>Connected document workflows</h3>
                 <p>
                     Potential email integration to identify tickets and
-                    payment confirmations, with calendar integration
-                    for relevant events and bookings.
+                    payment confirmations, with calendar integration for
+                    relevant events and bookings.
                 </p>
             </div>
             """,
@@ -646,17 +733,17 @@ if page == "🏠 Home":
         )
 
     # Closing statement
-    
     st.markdown(
         """
         <div class="home-closing">
             <h3>Paper in. Useful data out.</h3>
             <p>
-                DoDocu demonstrates how artificial intelligence,
-                application development and relational databases can
-                work together to turn everyday documents into organised,
-                reviewable and analysable information.
-                </p>
+                DoDocu demonstrates how AI, application development and
+                relational database technology can turn everyday document
+                images into structured, reviewable and analysable information.
+                AI assists with extraction; users remain in control of
+                reviewing the results before saving.
+            </p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -674,6 +761,8 @@ if page == "🏠 Home":
         st.info(
             "Select **📷 Scan Document** from the sidebar to begin."
         )
+
+        
 
 # ============================================================
 # SCAN DOCUMENT
