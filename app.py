@@ -44,7 +44,7 @@ from analytics import (
 
 st.set_page_config(
     page_title="DoDocu",
-    page_icon="dodocu_test_icon.png",
+    page_icon="dodo_icon.jpg",
     layout="wide",
 )
 
@@ -274,22 +274,20 @@ st.markdown(
 # DATABASE
 # ============================================================
 init_database()
+
 # ============================================================
 # BRANDING
 # ============================================================
 
-st.image(
-    "dodocu_ppt_banner.png",
-    width=500,
+branding_left, branding_center, branding_right = st.columns(
+    [1, 2, 1]
 )
 
-st.markdown(
-    "### Making paper clutter as extinct as the Dodo."
-)
-
-st.caption(
-    "### Snap. Extract. Extinct."
-)
+with branding_center:
+    st.image(
+        "dodo_in_jungle.jpg",
+        width=500,
+    )
 
 # ============================================================
 # SIDEBAR
@@ -314,18 +312,19 @@ page = st.sidebar.radio(
 if page == "🏠 Home":
 
     # Hero section
+
     st.markdown(
         """
         <div class="home-hero">
-            <div class="home-eyebrow">AI-powered document intelligence</div>
-            <h1>From paper documents<br>to organised digital records.</h1>
+            <div class="home-eyebrow">DOCUMENT INTELLIGENCE</div>
+            <h1>From document images to organised digital records.</h1>
             <p>
-                DoDocu transforms receipts, invoices, travel tickets and other
-                document images into structured digital records. AI extracts
-                relevant information, you review and correct the results, and
-                the verified records can be retrieved, filtered and analysed.
+                DoDocu uses multimodal AI to extract information from
+                receipts, invoices, travel tickets and other supported
+                document images. Review the extracted information, correct
+                it where necessary, save structured records, and explore
+                your recorded information through filters and analytics.
             </p>
-            <div class="hero-tagline">SNAP. EXTRACT. EXTINCT.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -398,14 +397,19 @@ if page == "🏠 Home":
     st.write("")
 
     # Application workflow
+    # Application workflow
+
     st.markdown(
         """
         <div class="home-section-label">Application workflow</div>
-        <div class="home-section-title">From document image to actionable information</div>
+        <div class="home-section-title">
+            From document image to structured information
+        </div>
         <div class="home-section-intro">
-            DoDocu combines AI extraction with human review, relational data
-            storage and analytics. Each stage transforms the information so
-            it can be checked, stored and used later.
+            DoDocu combines multimodal AI extraction, human verification,
+            relational data storage and interactive analytics. Each step
+            turns a document image into information that can be reviewed
+            and used later.
         </div>
         """,
         unsafe_allow_html=True,
@@ -415,32 +419,50 @@ if page == "🏠 Home":
         (
             "STEP 01",
             "Upload",
-            "Select a JPG or PNG image of a receipt, invoice, ticket or other supported document.",
+            "Upload a supported JPG, JPEG or PNG image of a receipt, "
+            "invoice, travel ticket or another document. The image is "
+            "prepared as bytes with an appropriate image MIME type.",
         ),
         (
             "STEP 02",
-            "Interpret",
-            "The Google Gemini API processes the image and identifies available text and document information.",
+            "Interpret with Gemini AI",
+            "The Google Gemini API receives the image and analyses its "
+            "visual content, including readable text, dates, amounts, "
+            "merchant details and other available information.",
         ),
         (
             "STEP 03",
-            "Extract and classify",
-            "DoDocu organises the returned information into common fields, a document type, a category and relevant template fields.",
+            "Structure and Classify",
+            "The extraction result is returned to the application as "
+            "structured data. DoDocu uses fields such as document_type, "
+            "category, merchant, document_date, currency, subtotal, tax, "
+            "total and summary, together with category details and "
+            "line items where available.",
         ),
         (
             "STEP 04",
-            "Review and correct",
-            "Inspect the extracted values and edit incorrect or missing information before saving.",
+            "Review and Correct",
+            "Review the extracted values in the Streamlit interface. "
+            "Correct the document type, category, dates, amounts and "
+            "other fields, and check any extracted line items before "
+            "saving the record.",
         ),
         (
             "STEP 05",
-            "Store",
-            "Save the reviewed record and its supported category details and line items in the PostgreSQL database.",
+            "Save to PostgreSQL",
+            "The reviewed information is passed to the database layer. "
+            "SQLAlchemy manages database operations, while PostgreSQL "
+            "stores the document record and its associated structured "
+            "details and line items. Duplicate checks help prevent "
+            "matching documents from being saved again.",
         ),
         (
             "STEP 06",
-            "Retrieve and analyse",
-            "Filter saved records and explore totals and spending patterns by category, merchant and month.",
+            "Retrieve and Analyse",
+            "Retrieve saved records using category, currency, month, "
+            "merchant, document type and date filters. Explore recorded "
+            "totals, monthly trends, category breakdowns and merchant "
+            "comparisons through interactive charts.",
         ),
     ]
 
@@ -461,9 +483,8 @@ if page == "🏠 Home":
             st.write("")
 
     st.info(
-        "AI extraction may be incomplete or inaccurate. Reviewing and "
-        "correcting the extracted information before saving is an important "
-        "part of the DoDocu workflow."
+        "Gemini extraction is not guaranteed to be complete or correct. "
+        "Review and verify the extracted information before saving it."
     )
 
     st.write("")
@@ -534,6 +555,60 @@ if page == "🏠 Home":
 
     st.write("")
 
+    # Supported document categories
+
+    st.markdown(
+        """
+        <div class="home-section-label">Document coverage</div>
+        <div class="home-section-title">
+            Two ways to organise a document
+        </div>
+        <div class="home-section-intro">
+            DoDocu uses two separate labels. Document type identifies
+            the kind of document you uploaded. Category identifies
+            the subject or spending area the document relates to.
+            Both help organise and retrieve your records.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    type_col, category_col = st.columns(2)
+
+    with type_col:
+        st.markdown(
+            """
+            <div class="home-card">
+                <h3>1. Document type — What is it?</h3>
+                <p>
+                    Document type describes the nature or purpose of the uploaded document. 
+                    It helps DoDocu identify the kind of information being processed.
+                    Currently supported document types include
+                    receipt, ticket, bus ticket and invoice.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with category_col:
+        st.markdown(
+            """
+            <div class="home-card">
+                <h3>2. Category — What is it about?</h3>
+                <p>
+                    Category identifies the subject or spending area associated with a document. 
+                    It helps to group similar records and analyse spending patterns.
+                    Currently supported categories include 
+                    grocery, restaurant, travel, work and general categories.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.write("")
+
     # Structured information
     st.markdown(
         """
@@ -596,41 +671,6 @@ if page == "🏠 Home":
 
     st.write("")
 
-    # Supported document categories
-    st.markdown(
-        """
-        <div class="home-section-label">Document coverage</div>
-        <div class="home-section-title">Designed for everyday documents</div>
-        <div class="home-section-intro">
-            Document type describes what a document is, while category
-            describes the area it relates to. DoDocu uses templates to
-            organise relevant fields for the selected category.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    categories = list(DOCUMENT_TEMPLATES.items())
-    category_columns = st.columns(3)
-
-    for index, (category, template) in enumerate(categories):
-        with category_columns[index % 3]:
-            st.markdown(
-                f"""
-                <div class="home-card">
-                    <h3>{template['label']}</h3>
-                    <p>{template['description']}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            st.write("")
-
-    st.caption(
-        "The available categories and fields depend on the document templates "
-        "configured in DoDocu."
-    )
-
     # Intended users
     st.markdown(
         """
@@ -687,14 +727,19 @@ if page == "🏠 Home":
     st.write("")
 
     # Future direction
+
     st.markdown(
         """
         <div class="home-section-label">Looking ahead</div>
-        <div class="home-section-title">A foundation for smarter document management</div>
+        <div class="home-section-title">
+            A foundation for smarter document management
+        </div>
         <div class="home-section-intro">
-            The current application establishes a workflow for capturing,
-            reviewing, storing and analysing document information.
-            These are potential extensions, not claims about current features.
+            The next stage of DoDocu could extend document coverage,
+            strengthen personal financial insights, support business
+            decision-making and connect documents with everyday digital
+            workflows. These are proposed enhancements, not current
+            application features.
         </div>
         """,
         unsafe_allow_html=True,
@@ -706,11 +751,42 @@ if page == "🏠 Home":
         st.markdown(
             """
             <div class="home-card">
-                <h3>Enhanced search and insights</h3>
+                <h3>01. Enhanced search and extraction</h3>
                 <p>
-                    More advanced retrieval, improved extraction quality,
-                    budget tracking, richer financial summaries and
-                    forecasting.
+                    <strong>Broader document support:</strong> Extend
+                    extraction to PDF files and improve the processing
+                    of long grocery receipts and documents containing
+                    many line items.
+                    <br><br>
+                    <strong>Smarter retrieval:</strong> Introduce
+                    stronger search capabilities and duplicate-document
+                    detection to help users find records and avoid
+                    repeated entries.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.write("")
+
+        st.markdown(
+            """
+            <div class="home-card">
+                <h3>03. Business intelligence for finance and marketing</h3>
+                <p>
+                    <strong>Finance teams:</strong> Organise invoices
+                    and expense records, analyse expenditure by
+                    supplier or category, and identify spending trends.
+                    <br><br>
+                    <strong>Marketing teams:</strong> Consolidate
+                    campaign invoices and advertising receipts to
+                    compare recorded costs across campaigns and
+                    reporting periods.
+                    <br><br>
+                    <strong>Advanced insights:</strong> Explore richer
+                    financial summaries, budget-versus-actual reporting
+                    and forecasting based on historical data.
                 </p>
             </div>
             """,
@@ -721,16 +797,48 @@ if page == "🏠 Home":
         st.markdown(
             """
             <div class="home-card">
-                <h3>Connected document workflows</h3>
+                <h3>02. Personal and household financial planning</h3>
                 <p>
-                    Potential email integration to identify tickets and
-                    payment confirmations, with calendar integration for
-                    relevant events and bookings.
+                    <strong>Expanded categories:</strong> Introduce
+                    templates for medical expenses, household utilities,
+                    celebrations, festivals, cash gifts and donations.
+                    <br><br>
+                    <strong>Budgeting and insights:</strong> Extend
+                    analytics to household budgets, spending limits,
+                    monthly expenditure comparisons and category-level
+                    trends to support more informed financial decisions.
                 </p>
             </div>
             """,
             unsafe_allow_html=True,
         )
+
+        st.write("")
+
+        st.markdown(
+            """
+            <div class="home-card">
+                <h3>04. Gmail and calendar integration</h3>
+                <p>
+                    <strong>Connected workflows:</strong> With user
+                    permission, identify relevant tickets, booking
+                    confirmations and payment emails, then extract
+                    useful details alongside their associated documents.
+                    <br><br>
+                    <strong>Calendar assistance:</strong> Offer to
+                    create calendar events from eligible bookings,
+                    with the user confirming the details before
+                    an event is added.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.caption(
+        "These roadmap ideas would require additional development, "
+        "testing and, where applicable, secure third-party integrations."
+    )
 
     # Closing statement
     st.markdown(
