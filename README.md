@@ -295,7 +295,7 @@ Ensure that the following are installed or available:
 Open a terminal and run:
 
 ```bash
-git clone https://github.com/Deepshikha-4/dodocu-app.git
+git clone https://github.com/Deepshikha-4/DoDocu_App.git
 cd dodocu-app
 ```
 
