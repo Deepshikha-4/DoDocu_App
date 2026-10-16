@@ -28,7 +28,7 @@ from sqlalchemy.orm import (
     selectinload,
 )
 
-from document_templates import DOCUMENT_TEMPLATES
+from document_templates import CATEGORIES, normalize_category, normalize_document_type
 
 
 # ============================================================
@@ -146,7 +146,7 @@ class Document(Base):
     document_type = Column(
         String(100),
         nullable=False,
-        default="document",
+        default="other",
     )
 
     merchant = Column(
@@ -339,42 +339,67 @@ class DocumentItem(Base):
 # ============================================================
 
 def _seed_categories():
-
+    """Seed canonical categories and migrate legacy category codes safely."""
     session = SessionLocal()
 
     try:
+        canonical_by_code = {}
 
-        for code, template in DOCUMENT_TEMPLATES.items():
-
-            existing = (
+        # Ensure all canonical category rows exist first.
+        for code, metadata in CATEGORIES.items():
+            category = (
                 session.query(Category)
-                .filter(
-                    Category.code == code
-                )
+                .filter(Category.code == code)
                 .first()
             )
 
-            if existing:
-                continue
+            if category is None:
+                category = Category(
+                    code=code,
+                    name=metadata["label"],
+                    description=metadata["description"],
+                )
+                session.add(category)
+                session.flush()
+            else:
+                category.name = metadata["label"]
+                category.description = metadata["description"]
 
-            category = Category(
-                code=code,
-                name=template.get(
-                    "label",
-                    code.title(),
-                ),
-                description=template.get(
-                    "description",
-                    f"{template.get('label', code.title())} documents",
-                ),
+            canonical_by_code[code] = category
+
+        session.flush()
+
+        # Move documents from old categories to their canonical equivalents.
+        legacy_categories = (
+            session.query(Category)
+            .filter(~Category.code.in_(list(CATEGORIES.keys())))
+            .all()
+        )
+
+        for legacy in legacy_categories:
+            target_code = normalize_category(legacy.code)
+            target = canonical_by_code[target_code]
+
+            session.query(Document).filter(
+                Document.category_id == legacy.id
+            ).update(
+                {Document.category_id: target.id},
+                synchronize_session=False,
             )
+            session.delete(legacy)
 
-            session.add(category)
+        # Normalize legacy type labels stored before the controlled type list.
+        for document in session.query(Document).all():
+            document.document_type = normalize_document_type(
+                document.document_type
+            )
 
         session.commit()
 
+    except Exception:
+        session.rollback()
+        raise
     finally:
-
         session.close()
 
 
@@ -587,10 +612,7 @@ def save_document(data):
 
     try:
 
-        category_code = (
-            data.get("category")
-            or "general"
-        )
+        category_code = normalize_category(data.get("category"))
 
         category = (
             session.query(Category)
@@ -654,9 +676,8 @@ def save_document(data):
 
             category_id=category.id,
 
-            document_type=data.get(
-                "document_type",
-                "document",
+            document_type=normalize_document_type(
+                data.get("document_type")
             ),
 
             merchant=data.get(

@@ -25,8 +25,11 @@ from database import (
 from gemini_service import extract_document
 
 from document_templates import (
-    DOCUMENT_TEMPLATES,
+    DOCUMENT_TYPES,
+    CATEGORIES,
     get_template,
+    normalize_document_type,
+    normalize_category,
 )
 
 from analytics import (
@@ -564,10 +567,10 @@ if page == "🏠 Home":
             Two ways to organise a document
         </div>
         <div class="home-section-intro">
-            DoDocu uses two separate labels. Document type identifies
-            the kind of document you uploaded. Category identifies
-            the subject or spending area the document relates to.
-            Both help organise and retrieve your records.
+            DoDocu uses two independent labels. Document type identifies
+            what the document is; category identifies the subject or spending
+            area it relates to. For example, an invoice can be categorised as
+            travel, and a ticket can also belong to travel.
         </div>
         """,
         unsafe_allow_html=True,
@@ -583,8 +586,8 @@ if page == "🏠 Home":
                 <p>
                     Document type describes the nature or purpose of the uploaded document. 
                     It helps DoDocu identify the kind of information being processed.
-                    Currently supported document types include
-                    receipt, ticket, bus ticket and invoice.
+                    Supported document types are receipt, invoice, ticket,
+                    handwritten note and other document.
                 </p>
             </div>
             """,
@@ -599,8 +602,8 @@ if page == "🏠 Home":
                 <p>
                     Category identifies the subject or spending area associated with a document. 
                     It helps to group similar records and analyse spending patterns.
-                    Currently supported categories include 
-                    grocery, restaurant, travel, work and general categories.
+Supported categories are grocery, clothing, restaurant and dining,
+                    travel, electronics, official and general.
                 </p>
             </div>
             """,
@@ -1015,31 +1018,28 @@ elif page == "📷 Scan Document":
 
         with col1:
 
-            document_type = st.text_input(
+            type_options = list(DOCUMENT_TYPES.keys())
+            detected_type = normalize_document_type(
+                data.get("document_type")
+            )
+            document_type = st.selectbox(
                 "Document Type",
-                value=data.get(
-                    "document_type"
-                )
-                or "",
+                options=type_options,
+                format_func=lambda value: DOCUMENT_TYPES[value],
+                index=type_options.index(detected_type),
+                key="review_document_type",
             )
 
+            category_options_for_review = list(CATEGORIES.keys())
+            detected_category = normalize_category(
+                data.get("category")
+            )
             category = st.selectbox(
                 "Category",
-                options=list(
-                    DOCUMENT_TEMPLATES.keys()
-                ),
-                format_func=lambda x:
-                    DOCUMENT_TEMPLATES[x]["label"],
-                index=(
-                    list(
-                        DOCUMENT_TEMPLATES.keys()
-                    ).index(
-                        data.get("category")
-                    )
-                    if data.get("category")
-                    in DOCUMENT_TEMPLATES
-                    else 0
-                ),
+                options=category_options_for_review,
+                format_func=lambda value: CATEGORIES[value]["label"],
+                index=category_options_for_review.index(detected_category),
+                key="review_category",
             )
 
             merchant = st.text_input(
@@ -1130,7 +1130,7 @@ elif page == "📷 Scan Document":
         )
 
         template = get_template(
-            category
+            document_type
         )
 
         existing_details = data.get(
@@ -1364,8 +1364,8 @@ elif page == "📷 Scan Document":
                 # ------------------------------------------------
 
                 final_data = {
-                    "document_type": document_type.strip(),
-                    "category": category,
+                    "document_type": normalize_document_type(document_type),
+                    "category": normalize_category(category),
                     "merchant": merchant.strip(),
                     "document_date": parsed_date,
                     "document_time": parsed_time,

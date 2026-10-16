@@ -1,8 +1,8 @@
 # DoDocu
 
-### Making paper clutter as extinct as the Dodo.
+### The ultimate sanctuary for your documents and receipts.
 
-**Snap. Extract. Extinct.**
+**Snap. Extract. Chart.**
 
 DoDocu is an AI-powered document and receipt scanner that helps users digitise, organise, and analyse information from everyday documents. By combining Google's Gemini API with Python and a PostgreSQL database, DoDocu extracts relevant information from document images, allows users to review and correct the extracted data, and stores structured records for future reference and analysis.
 
@@ -528,7 +528,7 @@ These are potential future developments rather than claims about functionality a
 
 The project demonstrates the integration of AI-powered information extraction, Python application development, relational database management, data analytics, containerisation, version control, and cloud deployment.
 
-**Project tagline:** *Making paper clutter as extinct as the Dodo.*
+**Project tagline:** *The ultimate sanctuary for your documents and receipts.*
 
-**Catchphrase:** *Snap. Extract. Extinct.*
+**Catchphrase:** *Snap. Extract. Chart.*
 
